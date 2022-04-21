@@ -1,8 +1,8 @@
 import { twilioConfig } from "./twilioConfig";
 
 const twilio = require("twilio");
-const accountSid = "AC9059c3ab167a3c0ace9cf3f0c5dd17ca"; // Your Account SID from www.twilio.com/console
-const authToken = "751cce1746d7ae3e3a3b9e1663ad9a59"; // Your Auth Token from www.twilio.com/console
+const accountSid = twilioConfig.accountSid; // Your Account SID from www.twilio.com/console
+const authToken = twilioConfig.authToken; // Your Auth Token from www.twilio.com/console
 const client = new twilio(accountSid, authToken);
 
 module.exports.receive = async (event, context, cb) => {
