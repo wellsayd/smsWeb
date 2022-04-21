@@ -18,6 +18,12 @@ functions:
       - http:
           path: receive
           method: post
+  sendSms:
+    handler: handler.sendSms
+    events:
+      - http:
+          path: sendSms
+          method: post
   test:
     handler: handler.test
 #      - websocket: $connect
