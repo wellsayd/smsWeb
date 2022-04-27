@@ -3,12 +3,32 @@ const twilio = require("twilio");
 const accountSid = twilioConfig.accountSid; // Your Account SID from www.twilio.com/console
 const authToken = twilioConfig.authToken; // Your Auth Token from www.twilio.com/console
 const client = new twilio(accountSid, authToken);
+const AWS = require("aws-sdk");
+const dynamoDb = new AWS.DynamoDB();
+const headersObj = {
+  // "Content-Type": "application/json",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
+};
 
 module.exports.receive = async (event) => {
   var message = new URLSearchParams(event.body);
   const twiml = new twilio.twiml.MessagingResponse();
-  console.log("event === " + JSON.stringify(event));
-  twiml.message("You sent this message:" + message.get("Body"));
+
+  try {
+    await dynamoDb
+      .putItem({
+        TableName: "SMSmessage",
+        Item: {
+          phone: { S: message.get("From") },
+          message: { S: message.get("Body") },
+        },
+      })
+      .promise();
+  } catch (error) {
+    // console.log("error ==== " + error);
+  }
 
   return {
     statusCode: 200,
@@ -20,43 +40,33 @@ module.exports.receive = async (event) => {
 };
 
 module.exports.sendSms = async (event) => {
-  console.log("event.body === " + event);
-  console.log("event.body ======== " + event.body);
-  var data = JSON.parse(event.body);
-  console.log("data = " + data.message);
-  console.log("data = " + data.phone);
   try {
-    const message = await client.messages.create({
+    var data = JSON.parse(event.body);
+  } catch (error) {
+    headersObj["Content-Type"] = "application/json";
+    return {
+      statusCode: 500,
+      headers: headersObj,
+      body: JSON.stringify(error),
+    };
+  }
+
+  var response;
+  try {
+    response = await client.messages.create({
       from: "+19378216536",
       to: data.phone,
       body: data.message,
     });
-    return {
-      statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
-      },
-      body: JSON.stringify(message),
-    };
   } catch (error) {
-    return {
-      statusCode: 500,
-      headers: {
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
-      },
-      body: JSON.stringify(error),
-    };
+    response = error;
   }
-};
 
-// module.exports.test = async (event) => {
-//   var foo =
-//     "{message: \"ffffff\", phone: \"+5102904236\"}";
-//   var params2 = JSON.parse(foo)
-//   // console.log(params2);
-//   console.log(params2);
-// };
+  headersObj["Content-Type"] = "application/json";
+
+  return {
+    statusCode: response.status === "queued" ? 200 : response.status,
+    headers: headersObj,
+    body: JSON.stringify(response),
+  };
+};
